@@ -33,7 +33,7 @@ public class YourService extends KiboRpcService {
         final int LOOP_MAX = 5;
 
         int loopCounter = 0;
-        while(!result.hasSucceeded() && loopCounter < LOOP_MAX {
+        while(!result.hasSucceeded() && loopCounter < LOOP_MAX) {
             result = api.moveTo(point, quaternion,true);
             ++loopCounter;
         }
