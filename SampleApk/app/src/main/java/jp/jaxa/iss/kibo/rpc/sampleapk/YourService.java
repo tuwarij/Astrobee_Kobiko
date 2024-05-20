@@ -41,8 +41,6 @@ public class YourService extends KiboRpcService {
         // Get a camera image.
         Mat image = api.getMatNavCam();
 
-        System.out.println("Hi");
-
         // Save the image
         api.saveMatImage(image, "file_name.png");
 
