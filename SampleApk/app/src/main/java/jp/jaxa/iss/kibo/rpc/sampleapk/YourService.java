@@ -33,7 +33,9 @@ import javax.xml.transform.Templates;
  */
 
 public class YourService extends KiboRpcService {
+
     private final String TAG = this.getClass().getSimpleName();
+
     @Override
     protected void runPlan1(){
         Log.i(TAG, "Start mission");
@@ -88,16 +90,16 @@ public class YourService extends KiboRpcService {
         //Pattern matching
         //Load template images
         String[] TEMPLATE_FILE_NAME = {
-                "app/src/main/assets/beaker.png",
-                "app/src/main/assets/goggle.png",
-                "app/src/main/assets/hammer.png",
-                "app/src/main/assets/kapton_tape.png",
-                "app/src/main/assets/pipette.png",
-                "app/src/main/assets/screwdriver.png",
-                "app/src/main/assets/thermometer.png",
-                "app/src/main/assets/top.png",
-                "app/src/main/assets/watch.png",
-                "app/src/main/assets/wrench.png"
+                "beaker.png",
+                "goggle.png",
+                "hammer.png",
+                "kapton_tape.png",
+                "pipette.png",
+                "screwdriver.png",
+                "thermometer.png",
+                "top.png",
+                "watch.png",
+                "wrench.png"
         };
 
         Mat[] templates = new Mat[TEMPLATE_FILE_NAME.length];
