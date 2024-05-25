@@ -51,9 +51,22 @@ public class YourService extends KiboRpcService {
         // When you recognize items, let’s set the type and number.
         api.setAreaInfo(1, "item_name", 1);
 
-        point = new Point(11.1d, -9.92284d, 5.195);
-        quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
-        api.relativeMoveTo(point, quaternion, true);
+        //step in x axis 20cm and reset rotation
+        point = new Point(11.1d, -9.92284d, 5.195d);
+        api.moveTo(point, quaternion, true);
+
+        //step to 2nd area and rotate to the ceiling
+        point = new Point(11.1d, -9.155d, 5.195d);
+        Quaternion quaternion_lookUpInXAxis = new Quaternion(0f, 0.707f, 0f, 0.707f);
+        api.moveTo(point, quaternion_lookUpInXAxis, true);
+
+        // move up to 2nd image
+        point = new Point(11.1d, -9.155d, 3.9d);
+        api.moveTo(point, quaternion_lookUpInXAxis,true);
+
+        // move to 3rd image
+        point = new Point(11.1d, -8.155d, 3.9d);
+        api.moveTo(point, quaternion_lookUpInXAxis, true);
 
         /* **************************************************** */
         /* Let's move to the each area and recognize the items. */
