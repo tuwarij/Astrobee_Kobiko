@@ -33,15 +33,13 @@ public class YourService extends KiboRpcService {
         final int LOOP_MAX = 5;
 
         int loopCounter = 0;
-        while(!result.hasSucceeded() && loopCounter < LOOP_MAX {
+        while(!result.hasSucceeded() && loopCounter < LOOP_MAX) {
             result = api.moveTo(point, quaternion,true);
             ++loopCounter;
         }
 
         // Get a camera image.
         Mat image = api.getMatNavCam();
-
-        System.out.println("Hi");
 
         // Save the image
         api.saveMatImage(image, "file_name.png");
@@ -52,6 +50,10 @@ public class YourService extends KiboRpcService {
 
         // When you recognize items, let’s set the type and number.
         api.setAreaInfo(1, "item_name", 1);
+
+        point = new Point(11.1d, -9.92284d, 5.195);
+        quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
+        api.relativeMoveTo(point, quaternion, true);
 
         /* **************************************************** */
         /* Let's move to the each area and recognize the items. */
