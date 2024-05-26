@@ -28,28 +28,7 @@ public class YourService extends KiboRpcService {
         // Move to a point.
         Point point = new Point(10.9d, -9.92284d, 5.195d);
         Quaternion quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
-        Result result = api.moveTo(point, quaternion, false);
-
-        final int LOOP_MAX = 5;
-
-        int loopCounter = 0;
-        while(!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-            result = api.moveTo(point, quaternion,true);
-            ++loopCounter;
-        }
-
-        // Get a camera image.
-        Mat image = api.getMatNavCam();
-
-        // Save the image
-        api.saveMatImage(image, "file_name.png");
-
-        /* *********************************************************************** */
-        /* Write your code to recognize type and number of items in the each area! */
-        /* *********************************************************************** */
-
-        // When you recognize items, let’s set the type and number.
-        api.setAreaInfo(1, "item_name", 1);
+        api.moveTo(point, quaternion, false);
 
         //step in x axis 20cm and reset rotation
         point = new Point(11.1d, -9.92284d, 5.195d);
@@ -57,16 +36,41 @@ public class YourService extends KiboRpcService {
 
         //step to 2nd area and rotate to the ceiling
         point = new Point(11.1d, -9.155d, 5.195d);
-        Quaternion quaternion_lookUpInXAxis = new Quaternion(0f, 0.707f, 0f, 0.707f);
+        Quaternion quaternion_lookUpInXAxis = new Quaternion(0f,  0.707f, 0f,  0.707f);
         api.moveTo(point, quaternion_lookUpInXAxis, true);
 
         // move up to 2nd image
-        point = new Point(11.1d, -9.155d, 3.9d);
+        point = new Point(11.1d, -9.155d, 4.5d);
         api.moveTo(point, quaternion_lookUpInXAxis,true);
 
+        // Get a camera image.
+        Mat image = api.getMatNavCam();
+        api.saveMatImage(image, "file_name.png");
+
+//        final int LOOP_MAX = 5;
+//
+//        int loopCounter = 0;
+//        while(!result.hasSucceeded() && loopCounter < LOOP_MAX) {
+//            result = api.moveTo(point, quaternion_lookUpInXAxis,true);
+//            ++loopCounter;
+//        }
+
         // move to 3rd image
-        point = new Point(11.1d, -8.155d, 3.9d);
+        point = new Point(11.1d, -8.155d, 4.5d);
+        quaternion_lookUpInXAxis = new Quaternion(0.271f,  0.653f, 0.271f,  0.653f);
         api.moveTo(point, quaternion_lookUpInXAxis, true);
+
+        // Get a camera image.
+        Mat image1 = api.getMatNavCam();
+        // Save the image
+        api.saveMatImage(image1, "file_name1.png");
+
+        /* *********************************************************************** */
+        /* Write your code to recognize type and number of items in the each area! */
+        /* *********************************************************************** */
+
+        // When you recognize items, let’s set the type and number.
+        api.setAreaInfo(1, "item_name", 1);
 
         /* **************************************************** */
         /* Let's move to the each area and recognize the items. */
