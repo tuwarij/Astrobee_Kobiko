@@ -33,6 +33,9 @@ public class YourService extends KiboRpcService {
         //step in x axis 20cm and reset rotation
         point = new Point(11.1d, -9.92284d, 5.195d);
         api.moveTo(point, quaternion, true);
+        // Get a camera image.
+        Mat image0 = api.getMatNavCam();
+        api.saveMatImage(image0, "file_name0.png");
 
         //step to 2nd area and rotate to the ceiling
         point = new Point(11.1d, -9.155d, 5.195d);
@@ -44,8 +47,8 @@ public class YourService extends KiboRpcService {
         api.moveTo(point, quaternion_lookUpInXAxis,true);
 
         // Get a camera image.
-        Mat image = api.getMatNavCam();
-        api.saveMatImage(image, "file_name.png");
+        Mat image1 = api.getMatNavCam();
+        api.saveMatImage(image1, "file_name1.png");
 
 //        final int LOOP_MAX = 5;
 //
@@ -56,14 +59,29 @@ public class YourService extends KiboRpcService {
 //        }
 
         // move to 3rd image
-        point = new Point(11.1d, -8.155d, 4.5d);
+        point = new Point(11.1d, -8.055d, 4.5d);
         quaternion_lookUpInXAxis = new Quaternion(0.271f,  0.653f, 0.271f,  0.653f);
         api.moveTo(point, quaternion_lookUpInXAxis, true);
 
         // Get a camera image.
-        Mat image1 = api.getMatNavCam();
+        Mat image2 = api.getMatNavCam();
         // Save the image
-        api.saveMatImage(image1, "file_name1.png");
+        api.saveMatImage(image2, "file_name2.png");
+
+        // move to 4th area by move x
+        point = new Point(10.7d, -8.055d, 4.5d);
+        quaternion = new Quaternion(0f,  0f, 0f,  0f);
+        api.moveTo(point, quaternion, true);
+
+        // move to 4th image by move Y
+        point = new Point(10.7d, -7.055d, 4.7d);
+        quaternion = new Quaternion(0f,  0f, 1f,  0f);
+        api.moveTo(point, quaternion, true);
+
+        // Get a camera image.
+        Mat image3 = api.getMatNavCam();
+        // Save the image
+        api.saveMatImage(image3, "file_name3.png");
 
         /* *********************************************************************** */
         /* Write your code to recognize type and number of items in the each area! */
