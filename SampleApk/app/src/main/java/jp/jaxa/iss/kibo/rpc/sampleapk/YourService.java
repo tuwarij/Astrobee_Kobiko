@@ -220,7 +220,7 @@ public class YourService extends KiboRpcService {
         }
 
         // Number of matches for each template
-        int templateMatchCnt[] = new int[10];
+        int[] templateMatchCnt = new int[10];
 
         // Get the number of template matches
         for(int tempNum = 0; tempNum < templates.length; tempNum++){
@@ -236,9 +236,9 @@ public class YourService extends KiboRpcService {
 
             // Pattern matching
             int widthMin = 20; //[px]
-            int widthMax = 10; //[px]
-            int changeWidth = 5; //[px]
-            int changeAngle = 45; //[degree]
+            int widthMax = 100; //[px]
+            int changeWidth = 20; //[px]
+            int changeAngle = 15; //[degree]
 
             for(int i = widthMin; i <= widthMax; i+= changeWidth){
                 for(int j = 0; j <= 360; j+= changeAngle){
@@ -249,9 +249,10 @@ public class YourService extends KiboRpcService {
                     Imgproc.matchTemplate(targetImg, rotResizedTemp, result, Imgproc.TM_CCOEFF_NORMED);
 
                     // Get coordinates with similarity grater than or equal to the threshold
-                    double threshold = 0.8;
+                    double threshold = 0.7;
                     Core.MinMaxLocResult mmlr = Core.minMaxLoc(result);
                     double maxVal = mmlr.maxVal;
+
                     if(maxVal >= threshold){
                         //Extract only results grater than or equal to to the threshold
                         Mat thresholdedResult = new Mat();
@@ -275,10 +276,13 @@ public class YourService extends KiboRpcService {
             // Number of matches for each template
             templateMatchCnt[tempNum] = matchCnt;
 
+            // Debugging logs
+            Log.i(TAG, "Template: " + TEMPLATE_NAME[tempNum] + ", Matches: " + matchCnt);
         }
 
         // When you recognize items, let’s set the type and number.
         int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
+        Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
         api.setAreaInfo(1, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
     }
 
