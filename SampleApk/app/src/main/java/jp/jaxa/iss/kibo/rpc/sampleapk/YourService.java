@@ -75,14 +75,14 @@ public class YourService extends KiboRpcService {
         point = new Point(11.1d, -9.92284d, 5.195d);
         api.moveTo(point, quaternion, true);
         // Get a camera image.
-        Mat image0 = api.getMatNavCam();
-        api.saveMatImage(image0, "file_name0.png");
+        Mat image1 = api.getMatNavCam();
+        api.saveMatImage(image1, "file_name1.png");
 
-        detectObject(image0);
+        detectObject(image1,1);
 
         // step to 2nd area and rotate to the ceiling
         point = new Point(11.1d, -9.155d, 5.195d);
-        Quaternion quaternion_lookUpInXAxis = new Quaternion(0f,  0.707f, 0f,  0.707f);
+        Quaternion quaternion_lookUpInXAxis = new Quaternion(-0.062f,  0.704f, -0.062f,  0.704f);
         api.moveTo(point, quaternion_lookUpInXAxis, true);
 
         // move up to 2nd image
@@ -90,9 +90,10 @@ public class YourService extends KiboRpcService {
         api.moveTo(point, quaternion_lookUpInXAxis,true);
 
         // Get a camera image.
-        Mat image1 = api.getMatNavCam();
-        api.saveMatImage(image1, "file_name1.png");
+        Mat image2 = api.getMatNavCam();
+        api.saveMatImage(image2, "file_name2.png");
 
+        detectObject(image2,2);
 //        final int LOOP_MAX = 5;
 //
 //        int loopCounter = 0;
@@ -107,9 +108,12 @@ public class YourService extends KiboRpcService {
         api.moveTo(point, quaternion_lookUpInXAxis, true);
 
         // Get a camera image.
-        Mat image2 = api.getMatNavCam();
+        Mat image3 = api.getMatNavCam();
         // Save the image
-        api.saveMatImage(image2, "file_name2.png");
+        api.saveMatImage(image3, "file_name3.png");
+
+        detectObject(image3,3);
+
 
         // move to 4th area by move x
         point = new Point(10.7d, -8.055d, 4.5d);
@@ -121,15 +125,18 @@ public class YourService extends KiboRpcService {
         quaternion = new Quaternion(0f,  0f, 1f,  0f);
         api.moveTo(point, quaternion, true);
 
+        // Get a camera image.
+        Mat image4 = api.getMatNavCam();
+        // Save the image
+        api.saveMatImage(image4, "file_name4.png");
+
+        detectObject(image4,4);
+
         // move to astronaut
         point = new Point(11.143, -6.7607, 4.9654);
         quaternion = new Quaternion(0f, 0f, 0.707f, 0.707f);
         api.moveTo(point, quaternion, true);
 
-        // Get a camera image.
-        Mat image3 = api.getMatNavCam();
-        // Save the image
-        api.saveMatImage(image3, "file_name3.png");
 
         /* *********************************************************************** */
         /* Write your code to recognize type and number of items in the each area! */
@@ -170,17 +177,17 @@ public class YourService extends KiboRpcService {
         // write your plan 3 here.
     }
 
-    // You can add your method.
-    private String yourMethod(){
-        return "your method";
-    }
+//    // You can add your method.
+//    private String yourMethod(){
+//        return "your method";
+//    }
 
-    private void detectObject(Mat image) {
+    private void detectObject(Mat image,int n) {
         // Detect AR
         Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
         List<Mat> corners = new ArrayList<>();
-        Mat makerIds = new Mat();
-        Aruco.detectMarkers(image, dictionary, corners, makerIds);
+        Mat markerIds = new Mat();
+        Aruco.detectMarkers(image, dictionary, corners, markerIds);
 
         // Get camera matrix
         Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
@@ -237,8 +244,8 @@ public class YourService extends KiboRpcService {
             // Pattern matching
             int widthMin = 20; //[px]
             int widthMax = 100; //[px]
-            int changeWidth = 20; //[px]
-            int changeAngle = 15; //[degree]
+            int changeWidth = 5; //[px]
+            int changeAngle = 45; //[degree]
 
             for(int i = widthMin; i <= widthMax; i+= changeWidth){
                 for(int j = 0; j <= 360; j+= changeAngle){
@@ -249,7 +256,7 @@ public class YourService extends KiboRpcService {
                     Imgproc.matchTemplate(targetImg, rotResizedTemp, result, Imgproc.TM_CCOEFF_NORMED);
 
                     // Get coordinates with similarity grater than or equal to the threshold
-                    double threshold = 0.7;
+                    double threshold = 0.8;
                     Core.MinMaxLocResult mmlr = Core.minMaxLoc(result);
                     double maxVal = mmlr.maxVal;
 
@@ -269,7 +276,7 @@ public class YourService extends KiboRpcService {
                     }
                 }
             }
-            // Avoid detacting the same Location multiple times
+            // Avoid detecting the same Location multiple times
             List<org.opencv.core.Point> filteredMatches = removeDuplicates(matches);
             matchCnt += filteredMatches.size();
 
@@ -283,7 +290,7 @@ public class YourService extends KiboRpcService {
         // When you recognize items, let’s set the type and number.
         int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
         Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
-        api.setAreaInfo(1, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
+        api.setAreaInfo(n, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
     }
 
 
@@ -314,9 +321,9 @@ public class YourService extends KiboRpcService {
         for(org.opencv.core.Point point : points){
             boolean isInclude = false;
             for(org.opencv.core.Point checkpoint : filteredList){
-                double distsnce = calculateDistance(point, checkpoint);
+                double distance = calculateDistance(point, checkpoint);
 
-                if(distsnce <= length){
+                if(distance <= length){
                     isInclude = true;
                     break;
                 }
