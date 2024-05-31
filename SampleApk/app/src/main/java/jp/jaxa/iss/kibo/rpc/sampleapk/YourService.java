@@ -116,7 +116,7 @@ public class YourService extends KiboRpcService {
         api.saveMatImage(image2, "file_name2.png");
         Log.i(TAG, "Captured and saved image2");
 
-        crop(image1, t);
+        crop(image2, t);
         areaId++;
         Log.i(TAG, "next is area3");
 
@@ -218,17 +218,17 @@ public class YourService extends KiboRpcService {
                 double[] bottomLeft = corner.get(0, 3);
 
                 // Adding
-                topLeft[0] -= 50;
-                topLeft[1] -= 50;
+                topLeft[0] -= 200;
+                topLeft[1] -= 200;
 
-                topRight[0] += 50;
-                topRight[1] -= 50;
+                topRight[0] += 200;
+                topRight[1] -= 200;
 
-                bottomRight[0] += 50;
-                bottomRight[1] += 50;
+                bottomRight[0] += 200;
+                bottomRight[1] += 200;
 
-                bottomLeft[0] -= 50;
-                bottomLeft[1] += 50;
+                bottomLeft[0] -= 200;
+                bottomLeft[1] += 200;
 
                 // Ensure coordinates are within image boundaries
                 topLeft[0] = Math.max(0, Math.min(topLeft[0], image.cols() - 1));
