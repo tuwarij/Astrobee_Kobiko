@@ -16,8 +16,13 @@ import org.opencv.aruco.Dictionary;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
+import org.opencv.core.DMatch;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfDMatch;
+import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.Size;
+import org.opencv.features2d.BFMatcher;
+import org.opencv.features2d.ORB;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
@@ -61,6 +66,7 @@ public class YourService extends KiboRpcService {
 
     @Override
     protected void runPlan1(){
+
         Log.i(TAG, "start mission");
 
         // The mission starts.
@@ -189,7 +195,19 @@ public class YourService extends KiboRpcService {
         Mat markerIds = new Mat();
         Aruco.detectMarkers(image, dictionary, corners, markerIds);
 
+        if (markerIds.empty()) {
+            Log.e(TAG, "No AR markers detected");
+        } else {
+            Log.i(TAG, "Detected AR markers: " + markerIds.dump());
+        }
+
         // Get camera matrix
+        double[][] navCamIntrinsics = api.getNavCamIntrinsics();
+        if (navCamIntrinsics.length != 2 || navCamIntrinsics[0].length != 9 || navCamIntrinsics[1].length != 5) {
+            Log.e(TAG, "Invalid NavCam intrinsics.");
+            return;
+        }
+
         Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
         cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
         //Get lens distortion parameters
@@ -200,148 +218,47 @@ public class YourService extends KiboRpcService {
         // Undistort image
         Mat undistortImg = new Mat();
         Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
+        api.saveMatImage(undistortImg, "undistorted_image.png");
 
-        //Pattern matching
+        //Pattern matching using ORB
         //Load template images
+        Mat[] templates = loadTemplates();
+        if (templates == null) return;
 
-        Mat[] templates = new Mat[TEMPLATE_FILE_NAME.length];
-        for (int i = 0; i < TEMPLATE_FILE_NAME.length; i++){
-            try {
-                //open the template image file in bitmap from the file name and convert to Mat
-                InputStream inputStream = getAssets().open(TEMPLATE_FILE_NAME[i]);
-                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-                Mat mat = new Mat();
-                Utils.bitmapToMat(bitmap, mat);
+        int[] templateMatchCnt = new int[templates.length];
+        ORB orb = ORB.create();
 
-                //convert to grayscale
-                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGR2GRAY);
+        for (int i = 0; i < templates.length; i++) {
+            Mat template = templates[i];
+            MatOfKeyPoint templateKeyPoints = new MatOfKeyPoint();
+            Mat templateDescriptors = new Mat();
+            orb.detectAndCompute(template, new Mat(), templateKeyPoints, templateDescriptors);
 
-                //assign to an array of templates
-                templates[i] = mat;
+            MatOfKeyPoint imageKeyPoints = new MatOfKeyPoint();
+            Mat imageDesriptors = new Mat();
+            orb.detectAndCompute(undistortImg, new Mat(), imageKeyPoints, imageDesriptors);
 
-                inputStream.close();
+            BFMatcher matcher = BFMatcher.create(Core.NORM_HAMMING, true);
+            MatOfDMatch matches = new MatOfDMatch();
+            matcher.match(templateDescriptors, imageDesriptors, matches);
 
-            } catch (IOException e){
-                e.printStackTrace();
-            }
-        }
-
-        // Number of matches for each template
-        int[] templateMatchCnt = new int[10];
-
-        // Get the number of template matches
-        for(int tempNum = 0; tempNum < templates.length; tempNum++){
-            // Number of matches
-            int matchCnt = 0;
-
-            // Coordinates of the matched Location
-            List<org.opencv.core.Point> matches = new ArrayList<>();
-
-            //Loading template image and target image
-            Mat template = templates[tempNum].clone();
-            Mat targetImg = undistortImg.clone();
-
-            // Pattern matching
-            int widthMin = 20; //[px]
-            int widthMax = 100; //[px]
-            int changeWidth = 5; //[px]
-            int changeAngle = 45; //[degree]
-
-            for(int i = widthMin; i <= widthMax; i+= changeWidth){
-                for(int j = 0; j <= 360; j+= changeAngle){
-                    Mat resizedTemp = resizeImg(template, i);
-                    Mat rotResizedTemp = rotImg(resizedTemp, j);
-
-                    Mat result = new Mat();
-                    Imgproc.matchTemplate(targetImg, rotResizedTemp, result, Imgproc.TM_CCOEFF_NORMED);
-
-                    // Get coordinates with similarity grater than or equal to the threshold
-                    double threshold = 0.8;
-                    Core.MinMaxLocResult mmlr = Core.minMaxLoc(result);
-                    double maxVal = mmlr.maxVal;
-
-                    if(maxVal >= threshold){
-                        //Extract only results grater than or equal to to the threshold
-                        Mat thresholdedResult = new Mat();
-                        Imgproc.threshold(result, thresholdedResult, threshold, 1.0, Imgproc.THRESH_TOZERO);
-
-                        // Get match counts
-                        for(int y = 0; y < thresholdedResult.rows(); y++){
-                            for(int x = 0; x < thresholdedResult.cols(); x++){
-                                if(thresholdedResult.get(y,x)[0] > 0){
-                                    matches.add(new org.opencv.core.Point(x, y));
-                                }
-                            }
-                        }
-                    }
+            DMatch[] matchArray = matches.toArray();
+            int matchCount = 0;
+            for (DMatch match : matchArray) {
+                if (match.distance < 50) {
+                    matchCount++;
                 }
             }
-            // Avoid detecting the same Location multiple times
-            List<org.opencv.core.Point> filteredMatches = removeDuplicates(matches);
-            matchCnt += filteredMatches.size();
 
-            // Number of matches for each template
-            templateMatchCnt[tempNum] = matchCnt;
-
-            // Debugging logs
-            Log.i(TAG, "Template: " + TEMPLATE_NAME[tempNum] + ", Matches: " + matchCnt);
+            templateMatchCnt[i] = matchCount;
+            Log.i(TAG, "Template: " + TEMPLATE_NAME[i] + ", Matches: " + matchCount);
         }
 
-        // When you recognize items, let’s set the type and number.
         int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
         Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
         api.setAreaInfo(n, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
-    }
 
 
-    // Resize image
-    private Mat resizeImg(Mat img, int width){
-        int height = (int)(img.rows() * ((double) width/ img.cols()));
-        Mat resizedImg = new Mat();
-        Imgproc.resize(img, resizedImg, new Size(width, height));
-
-        return resizedImg;
-    }
-
-    //Rotate image
-    private Mat rotImg(Mat img, int angle){
-        org.opencv.core.Point center = new org.opencv.core.Point(img.cols() / 2.0, img.rows() / 2.0);
-        Mat rotatedMat = Imgproc.getRotationMatrix2D(center, angle, 1.0);
-        Mat rotatedImg = new Mat();
-        Imgproc.warpAffine(img, rotatedImg, rotatedMat, img.size());
-
-        return rotatedImg;
-    }
-
-    //Remove multiple detections
-    private static List<org.opencv.core.Point> removeDuplicates(List<org.opencv.core.Point> points){
-        double length = 10; //width 10 px
-        List<org.opencv.core.Point> filteredList = new ArrayList<>();
-
-        for(org.opencv.core.Point point : points){
-            boolean isInclude = false;
-            for(org.opencv.core.Point checkpoint : filteredList){
-                double distance = calculateDistance(point, checkpoint);
-
-                if(distance <= length){
-                    isInclude = true;
-                    break;
-                }
-            }
-
-            if(!isInclude){
-                filteredList.add(point);
-            }
-        }
-        return filteredList;
-    }
-
-    //Find the distance between two point
-    private static double calculateDistance(org.opencv.core.Point p1, org.opencv.core.Point p2){
-        double dx = p1.x - p2.x;
-        double dy = p1.y - p2.y;
-
-        return Math.sqrt(Math.pow(dx, 2) +  Math.pow(dy, 2));
     }
 
     //Get the maximum value of an array
@@ -358,4 +275,29 @@ public class YourService extends KiboRpcService {
         }
         return maxIndex;
     }
+
+    private Mat[] loadTemplates() {
+        Mat[] templates = new Mat[TEMPLATE_FILE_NAME.length];
+        for (int i = 0; i < TEMPLATE_FILE_NAME.length; i++) {
+            try {
+                InputStream inputStream = getAssets().open(TEMPLATE_FILE_NAME[i]);
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                if (bitmap == null) {
+                    Log.e(TAG, "Failed to decode bitmap for template: " + TEMPLATE_FILE_NAME[i]);
+                    continue;
+                }
+                Mat mat = new Mat();
+                Utils.bitmapToMat(bitmap, mat);
+                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGR2GRAY);
+                templates[i] = mat;
+                inputStream.close();
+                Log.i(TAG, "Loaded template: " + TEMPLATE_FILE_NAME[i]);
+            } catch (IOException e) {
+                e.printStackTrace();
+                Log.e(TAG, "IOException while loading template: " + TEMPLATE_FILE_NAME[i]);
+            }
+        }
+        return templates;
+    }
+
 }
