@@ -42,6 +42,7 @@ public class YourService extends KiboRpcService {
 
     private final String TAG = this.getClass().getSimpleName();
 
+<<<<<<< HEAD
     private final String[] TEMPLATE_FILE_NAME = {
             "beaker.png",
             "goggle.png",
@@ -68,6 +69,8 @@ public class YourService extends KiboRpcService {
             "screwdriver"
     };
 
+=======
+>>>>>>> 17b34238124e604804f877e3f6d6df90b6014bec
     @Override
     protected void runPlan1() {
         Log.i(TAG, "start mission");
@@ -151,6 +154,119 @@ public class YourService extends KiboRpcService {
         /* Write your code to recognize type and number of items in the each area! */
         /* *********************************************************************** */
 
+<<<<<<< HEAD
+=======
+        //Detect AR
+        Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
+        List<Mat> corners = new ArrayList<>();
+        Mat makerIds = new Mat();
+        Aruco.detectMarkers(image, dictionary, corners, makerIds);
+
+        //Get camera metrix
+        Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
+        cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
+        //Get lens distortion parameters
+        Mat cameraCoefficients = new Mat(1, 5, CvType.CV_64F);
+        cameraCoefficients.put(0, 0, api.getNavCamIntrinsics()[1]);
+        cameraCoefficients.convertTo(cameraCoefficients, CvType.CV_64F);
+
+        //Undistart image
+        Mat undistortImg = new Mat();
+        Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
+
+        //Pattern matching
+        //Load template images
+        String[] TEMPLATE_FILE_NAME = {
+                "beaker.png",
+                "goggle.png",
+                "hammer.png",
+                "kapton_tape.png",
+                "pipette.png",
+                "screwdriver.png",
+                "thermometer.png",
+                "top.png",
+                "watch.png",
+                "wrench.png"
+        };
+
+        Mat[] templates = new Mat[TEMPLATE_FILE_NAME.length];
+        for (int i = 0; i < TEMPLATE_FILE_NAME.length; i++){
+            try {
+                //open the template image file in bitmap from the file name and convert to Mat
+                InputStream inputStream = getAssets().open(TEMPLATE_FILE_NAME[i]);
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                Mat mat = new Mat();
+                Utils.bitmapToMat(bitmap, mat);
+
+                //convert to grayscale
+                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGR2GRAY);
+
+                //assign to an array of templates
+                templates[i] = mat;
+                inputStream.close();
+            } catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+
+        // Number of matches for each template
+        int templateMatchCnt[] = new int[10];
+
+        // Get the number of template matches
+        for(int tempNum = 0; tempNum < templates.length; tempNum++){
+            // Number of matches
+            int matchCnt = 0;
+            // Coordinates of the matched Location
+            List<org.opencv.core.Point> matches = new ArrayList<>();
+
+            //Loading template image and target image
+            Mat template = templates[tempNum].clone();
+            Mat targetImg = undistortImg.clone();
+
+            // Pattern matching
+            int widthMin = 20; //[px]
+            int widthMax = 10; //[px]
+            int changeWidth = 5; //[px]
+            int changeAngle = 45; //[degree]
+
+            for(int i = widthMin; i <= widthMax; i+= changeWidth){
+                for(int j = 0; j <= 360; j+= changeAngle){
+                    Mat resizedTemp = resizeImg(template, i);
+                    Mat rotResizedTemp = rotImg(resizedTemp, j);
+
+                    Mat result = new Mat();
+                    Imgproc.matchTemplate(targetImg, rotResizedTemp, result, Imgproc.TM_CCOEFF_NORMED);
+
+                    // Get coordinates with similarity grater than or equal to the threshold
+                    double threshold = 0.8;
+                    Core.MinMaxLocResult mmlr = Core.minMaxLoc(result);
+                    double maxVal = mmlr.maxVal;
+                    if(maxVal >= threshold){
+                        //Extract only results grater than or equal to to the threshold
+                        Mat thresholdedResult = new Mat();
+                        Imgproc.threshold(result, thresholdedResult, threshold, 1.0, Imgproc.THRESH_TOZERO);
+
+                        // Get match counts
+                        for(int y = 0; y < thresholdedResult.rows(); y++){
+                            for(int x = 0; x < thresholdedResult.cols(); x++){
+                                if(thresholdedResult.get(y,x)[0] > 0){
+                                    matches.add(new org.opencv.core.Point(x, y));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Avoid detacting the same Location multiple times
+            List<org.opencv.core.Point> filteredMatches = removeDuplicates(matches);
+            matchCnt += filteredMatches.size();
+
+            // Number of matches for each template
+            templateMatchCnt[tempNum] = matchCnt;
+
+        }
+
+>>>>>>> 17b34238124e604804f877e3f6d6df90b6014bec
         // When you recognize items, let’s set the type and number.
 //        api.setAreaInfo(1, "item_name", 1);
 
