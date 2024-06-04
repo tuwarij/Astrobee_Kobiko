@@ -88,7 +88,7 @@ public class YourService extends KiboRpcService {
 
         // step to 2nd area and rotate to the ceiling
         point = new Point(11.1d, -9.155d, 5.195d);
-        Quaternion quaternion_lookUpInXAxis = new Quaternion(-0.062f,  0.704f, -0.062f,  0.704f);
+        Quaternion quaternion_lookUpInXAxis = new Quaternion(0f,  0.707f, 0f,  0.707f);
         api.moveTo(point, quaternion_lookUpInXAxis, true);
 
         // move up to 2nd image
@@ -218,7 +218,20 @@ public class YourService extends KiboRpcService {
         // Undistort image
         Mat undistortImg = new Mat();
         Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
-        api.saveMatImage(undistortImg, "undistorted_image.png");
+        api.saveMatImage(undistortImg, "undistorted_image" + n + ".png");
+
+        // Convert to grayscale
+//        Mat grayImg = new Mat();
+//        Imgproc.cvtColor(undistortImg, grayImg, Imgproc.COLOR_BGR2GRAY);
+
+        // Enhance image if it has 3 channels
+        Mat enhancedImg = new Mat();
+        if (undistortImg.channels() == 3) {
+            Imgproc.cvtColor(undistortImg, enhancedImg, Imgproc.COLOR_BGR2GRAY);
+        } else {
+            enhancedImg = undistortImg;
+        }
+        Imgproc.equalizeHist(enhancedImg, enhancedImg);
 
         //Pattern matching using ORB
         //Load template images
@@ -226,7 +239,7 @@ public class YourService extends KiboRpcService {
         if (templates == null) return;
 
         int[] templateMatchCnt = new int[templates.length];
-        ORB orb = ORB.create();
+        ORB orb = ORB.create(500, 1.2f, 8, 31, 0, 2, ORB.HARRIS_SCORE, 31, 20);
 
         for (int i = 0; i < templates.length; i++) {
             Mat template = templates[i];
@@ -235,30 +248,32 @@ public class YourService extends KiboRpcService {
             orb.detectAndCompute(template, new Mat(), templateKeyPoints, templateDescriptors);
 
             MatOfKeyPoint imageKeyPoints = new MatOfKeyPoint();
-            Mat imageDesriptors = new Mat();
-            orb.detectAndCompute(undistortImg, new Mat(), imageKeyPoints, imageDesriptors);
+            Mat imageDescriptors = new Mat();
+            orb.detectAndCompute(enhancedImg, new Mat(), imageKeyPoints, imageDescriptors);
 
             BFMatcher matcher = BFMatcher.create(Core.NORM_HAMMING, true);
             MatOfDMatch matches = new MatOfDMatch();
-            matcher.match(templateDescriptors, imageDesriptors, matches);
+            matcher.match(templateDescriptors, imageDescriptors, matches);
 
+            // Apply ratio test of Lowe
+            List<DMatch> goodMatches = new ArrayList<>();
             DMatch[] matchArray = matches.toArray();
-            int matchCount = 0;
-            for (DMatch match : matchArray) {
-                if (match.distance < 50) {
-                    matchCount++;
+
+            for (int j = 0; j < matchArray.length - 1; j++) {
+                DMatch match1 = matchArray[j];
+                DMatch match2 = matchArray[j + 1];
+                if (match1.distance < 0.75 * match2.distance) {
+                    goodMatches.add(match1);
                 }
             }
 
-            templateMatchCnt[i] = matchCount;
-            Log.i(TAG, "Template: " + TEMPLATE_NAME[i] + ", Matches: " + matchCount);
+            templateMatchCnt[i] = goodMatches.size();
+            Log.i(TAG, "Template: " + TEMPLATE_NAME[i] + ", Matches: " + goodMatches.size());
         }
 
         int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
         Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
         api.setAreaInfo(n, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
-
-
     }
 
     //Get the maximum value of an array
@@ -273,6 +288,8 @@ public class YourService extends KiboRpcService {
                 maxIndex = i;
             }
         }
+
+        System.out.println("hi");
         return maxIndex;
     }
 
