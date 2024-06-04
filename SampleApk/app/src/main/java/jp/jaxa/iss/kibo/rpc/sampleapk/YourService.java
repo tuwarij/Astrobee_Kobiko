@@ -2,6 +2,7 @@ package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.Image;
 import android.util.Log;
 
 import gov.nasa.arc.astrobee.Result;
@@ -20,6 +21,8 @@ import org.opencv.core.DMatch;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfDMatch;
 import org.opencv.core.MatOfKeyPoint;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Rect;
 import org.opencv.core.Size;
 import org.opencv.features2d.BFMatcher;
 import org.opencv.features2d.ORB;
@@ -80,26 +83,27 @@ public class YourService extends KiboRpcService {
         // step in x axis 20cm and reset rotation
         point = new Point(11.1d, -9.92284d, 5.195d);
         api.moveTo(point, quaternion, true);
+        api.flashlightControlFront(0.3f);
         // Get a camera image.
         Mat image1 = api.getMatNavCam();
         api.saveMatImage(image1, "file_name1.png");
 
-        detectObject(image1,1);
+        detectObject(image1,1, 300, 50, 0, 0);
 
         // step to 2nd area and rotate to the ceiling
         point = new Point(11.1d, -9.155d, 5.195d);
-        Quaternion quaternion_lookUpInXAxis = new Quaternion(-0.062f,  0.704f, -0.062f,  0.704f);
+        Quaternion quaternion_lookUpInXAxis = new Quaternion(0f,  0.707f, 0f,  0.707f);
         api.moveTo(point, quaternion_lookUpInXAxis, true);
 
         // move up to 2nd image
-        point = new Point(11.1d, -9.155d, 4.5d);
+        point = new Point(11.1d, -8.955d, 4.5d);
         api.moveTo(point, quaternion_lookUpInXAxis,true);
 
         // Get a camera image.
         Mat image2 = api.getMatNavCam();
         api.saveMatImage(image2, "file_name2.png");
 
-        detectObject(image2,2);
+        detectObject(image2,2, 300, 250, 0, 0);
 //        final int LOOP_MAX = 5;
 //
 //        int loopCounter = 0;
@@ -110,16 +114,15 @@ public class YourService extends KiboRpcService {
 
         // move to 3rd image
         point = new Point(11.1d, -8.055d, 4.5d);
-        quaternion_lookUpInXAxis = new Quaternion(0.271f,  0.653f, 0.271f,  0.653f);
         api.moveTo(point, quaternion_lookUpInXAxis, true);
+        api.flashlightControlFront(0.6f);
 
         // Get a camera image.
         Mat image3 = api.getMatNavCam();
         // Save the image
         api.saveMatImage(image3, "file_name3.png");
-
-        detectObject(image3,3);
-
+        detectObject(image3,3, 300, 0, 0, 0);
+        api.flashlightControlFront(0.0f);
 
         // move to 4th area by move x
         point = new Point(10.7d, -8.055d, 4.5d);
@@ -127,7 +130,7 @@ public class YourService extends KiboRpcService {
         api.moveTo(point, quaternion, true);
 
         // move to 4th image by move Y
-        point = new Point(10.7d, -7.055d, 4.7d);
+        point = new Point(10.7d, -7.055d, 4.8d);
         quaternion = new Quaternion(0f,  0f, 1f,  0f);
         api.moveTo(point, quaternion, true);
 
@@ -136,7 +139,7 @@ public class YourService extends KiboRpcService {
         // Save the image
         api.saveMatImage(image4, "file_name4.png");
 
-        detectObject(image4,4);
+        detectObject(image4,4,0,0,0,0);
 
         // move to astronaut
         point = new Point(11.143, -6.7607, 4.9654);
@@ -188,78 +191,181 @@ public class YourService extends KiboRpcService {
 //        return "your method";
 //    }
 
-    private void detectObject(Mat image,int n) {
-        // Detect AR
-        Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
-        List<Mat> corners = new ArrayList<>();
-        Mat markerIds = new Mat();
-        Aruco.detectMarkers(image, dictionary, corners, markerIds);
+//    private void detectObject(Mat image,int n) {
+//        // Detect AR
+//        Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
+//        List<Mat> corners = new ArrayList<>();
+//        Mat markerIds = new Mat();
+//        Aruco.detectMarkers(image, dictionary, corners, markerIds);
+//
+//        if (markerIds.empty()) {
+//            Log.e(TAG, "No AR markers detected");
+//        } else {
+//            Log.i(TAG, "Detected AR markers: " + markerIds.dump());
+//        }
+//
+//        // Get camera matrix
+//        double[][] navCamIntrinsics = api.getNavCamIntrinsics();
+//        if (navCamIntrinsics.length != 2 || navCamIntrinsics[0].length != 9 || navCamIntrinsics[1].length != 5) {
+//            Log.e(TAG, "Invalid NavCam intrinsics.");
+//            return;
+//        }
+//
+//        Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
+//        cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
+//        //Get lens distortion parameters
+//        Mat cameraCoefficients = new Mat(1, 5, CvType.CV_64F);
+//        cameraCoefficients.put(0, 0, api.getNavCamIntrinsics()[1]);
+//        cameraCoefficients.convertTo(cameraCoefficients, CvType.CV_64F);
+//
+//        // Undistort image
+//        Mat undistortImg = new Mat();
+//        Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
+//        api.saveMatImage(undistortImg, "undistorted_image.png");
+//
+//        //Pattern matching using ORB
+//        //Load template images
+//        Mat[] templates = loadTemplates();
+//        if (templates == null) return;
+//
+//        int[] templateMatchCnt = new int[templates.length];
+//        ORB orb = ORB.create();
+//
+//        for (int i = 0; i < templates.length; i++) {
+//            Mat template = templates[i];
+//            MatOfKeyPoint templateKeyPoints = new MatOfKeyPoint();
+//            Mat templateDescriptors = new Mat();
+//            orb.detectAndCompute(template, new Mat(), templateKeyPoints, templateDescriptors);
+//
+//            MatOfKeyPoint imageKeyPoints = new MatOfKeyPoint();
+//            Mat imageDesriptors = new Mat();
+//            orb.detectAndCompute(undistortImg, new Mat(), imageKeyPoints, imageDesriptors);
+//
+//            BFMatcher matcher = BFMatcher.create(Core.NORM_HAMMING, true);
+//            MatOfDMatch matches = new MatOfDMatch();
+//            matcher.match(templateDescriptors, imageDesriptors, matches);
+//
+//            DMatch[] matchArray = matches.toArray();
+//            int matchCount = 0;
+//            for (DMatch match : matchArray) {
+//                if (match.distance < 50) {
+//                    matchCount++;
+//                }
+//            }
+//
+//            templateMatchCnt[i] = matchCount;
+//            Log.i(TAG, "Template: " + TEMPLATE_NAME[i] + ", Matches: " + matchCount);
+//        }
+//
+//        int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
+//        Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
+//        api.setAreaInfo(n, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
+//
+//
+//    }
+private void detectObject(Mat image, int n,int leftShift, int rightShift, int topShift, int bottomShift) {
+    // Detect AR
+    Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
+    List<Mat> corners = new ArrayList<>();
+    Mat markerIds = new Mat();
+    Aruco.detectMarkers(image, dictionary, corners, markerIds);
 
-        if (markerIds.empty()) {
-            Log.e(TAG, "No AR markers detected");
-        } else {
-            Log.i(TAG, "Detected AR markers: " + markerIds.dump());
-        }
-
-        // Get camera matrix
-        double[][] navCamIntrinsics = api.getNavCamIntrinsics();
-        if (navCamIntrinsics.length != 2 || navCamIntrinsics[0].length != 9 || navCamIntrinsics[1].length != 5) {
-            Log.e(TAG, "Invalid NavCam intrinsics.");
-            return;
-        }
-
-        Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
-        cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
-        //Get lens distortion parameters
-        Mat cameraCoefficients = new Mat(1, 5, CvType.CV_64F);
-        cameraCoefficients.put(0, 0, api.getNavCamIntrinsics()[1]);
-        cameraCoefficients.convertTo(cameraCoefficients, CvType.CV_64F);
-
-        // Undistort image
-        Mat undistortImg = new Mat();
-        Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
-        api.saveMatImage(undistortImg, "undistorted_image.png");
-
-        //Pattern matching using ORB
-        //Load template images
-        Mat[] templates = loadTemplates();
-        if (templates == null) return;
-
-        int[] templateMatchCnt = new int[templates.length];
-        ORB orb = ORB.create();
-
-        for (int i = 0; i < templates.length; i++) {
-            Mat template = templates[i];
-            MatOfKeyPoint templateKeyPoints = new MatOfKeyPoint();
-            Mat templateDescriptors = new Mat();
-            orb.detectAndCompute(template, new Mat(), templateKeyPoints, templateDescriptors);
-
-            MatOfKeyPoint imageKeyPoints = new MatOfKeyPoint();
-            Mat imageDesriptors = new Mat();
-            orb.detectAndCompute(undistortImg, new Mat(), imageKeyPoints, imageDesriptors);
-
-            BFMatcher matcher = BFMatcher.create(Core.NORM_HAMMING, true);
-            MatOfDMatch matches = new MatOfDMatch();
-            matcher.match(templateDescriptors, imageDesriptors, matches);
-
-            DMatch[] matchArray = matches.toArray();
-            int matchCount = 0;
-            for (DMatch match : matchArray) {
-                if (match.distance < 50) {
-                    matchCount++;
-                }
-            }
-
-            templateMatchCnt[i] = matchCount;
-            Log.i(TAG, "Template: " + TEMPLATE_NAME[i] + ", Matches: " + matchCount);
-        }
-
-        int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
-        Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
-        api.setAreaInfo(n, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
-
-
+    if (markerIds.empty()) {
+        Log.e(TAG, "No AR markers detected");
+    } else {
+        Log.i(TAG, "Detected AR markers: " + markerIds.dump());
     }
+
+    // Get camera matrix
+    double[][] navCamIntrinsics = api.getNavCamIntrinsics();
+    if (navCamIntrinsics.length != 2 || navCamIntrinsics[0].length != 9 || navCamIntrinsics[1].length != 5) {
+        Log.e(TAG, "Invalid NavCam intrinsics.");
+        return;
+    }
+
+    Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
+    cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
+    // Get lens distortion parameters
+    Mat cameraCoefficients = new Mat(1, 5, CvType.CV_64F);
+    cameraCoefficients.put(0, 0, api.getNavCamIntrinsics()[1]);
+    cameraCoefficients.convertTo(cameraCoefficients, CvType.CV_64F);
+
+    // Undistort image
+    Mat undistortImg = new Mat();
+    Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
+    api.saveMatImage(undistortImg, "undistorted_image"+n+".png");
+
+    Mat imagecrop = cropImage(undistortImg, leftShift, rightShift, topShift, bottomShift);
+    api.saveMatImage(imagecrop, "cropmanual"+n+".png");
+
+    // Apply Canny Edge Detector
+    Mat edges = new Mat();
+    Imgproc.Canny(imagecrop, edges, 100, 200);
+    api.saveMatImage(edges, "edges"+n+".png");
+
+    // Find contours
+    List<MatOfPoint> contours = new ArrayList<>();
+    Mat hierarchy = new Mat();
+    Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+    // Find bounding box of the largest contour
+    Rect boundingBox = null;
+    double maxArea = 0;
+    for (MatOfPoint contour : contours) {
+        double area = Imgproc.contourArea(contour);
+        if (area > maxArea) {
+            maxArea = area;
+            boundingBox = Imgproc.boundingRect(contour);
+        }
+    }
+
+    if (boundingBox != null) {
+        // Crop the image using the bounding box
+        Mat croppedImage = new Mat(undistortImg, boundingBox);
+        api.saveMatImage(croppedImage, "cropped_image"+n+".png");
+    } else {
+        Log.e(TAG, "No contours found.");
+    }
+
+    // Pattern matching using ORB
+    // Load template images
+    Mat[] templates = loadTemplates();
+    if (templates == null) return;
+
+    int[] templateMatchCnt = new int[templates.length];
+    ORB orb = ORB.create();
+
+    for (int i = 0; i < templates.length; i++) {
+        Mat template = templates[i];
+        MatOfKeyPoint templateKeyPoints = new MatOfKeyPoint();
+        Mat templateDescriptors = new Mat();
+        orb.detectAndCompute(template, new Mat(), templateKeyPoints, templateDescriptors);
+
+        MatOfKeyPoint imageKeyPoints = new MatOfKeyPoint();
+        Mat imageDescriptors = new Mat();
+        orb.detectAndCompute(undistortImg, new Mat(), imageKeyPoints, imageDescriptors);
+
+        BFMatcher matcher = BFMatcher.create(Core.NORM_HAMMING, true);
+        MatOfDMatch matches = new MatOfDMatch();
+        matcher.match(templateDescriptors, imageDescriptors, matches);
+
+        DMatch[] matchArray = matches.toArray();
+        int matchCount = 0;
+        for (DMatch match : matchArray) {
+            if (match.distance < 50) {
+                matchCount++;
+            }
+        }
+
+        templateMatchCnt[i] = matchCount;
+        Log.i(TAG, "Template: " + TEMPLATE_NAME[i] + ", Matches: " + matchCount);
+    }
+
+    int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
+    Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
+    api.setAreaInfo(n, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
+}
+
 
     //Get the maximum value of an array
     private int getMaxIndex(int[] array){
@@ -298,6 +404,24 @@ public class YourService extends KiboRpcService {
             }
         }
         return templates;
+    }
+
+    public static Mat cropImage(Mat image, int leftShift, int rightShift, int topShift, int bottomShift) {
+        int x = leftShift;
+        int y = topShift;
+        int width = image.cols() - leftShift - rightShift;
+        int height = image.rows() - topShift - bottomShift;
+
+        // Ensure the dimensions are valid
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Invalid crop dimensions!");
+        }
+
+        // Define the region of interest (ROI)
+        Rect roi = new Rect(x, y, width, height);
+
+        // Crop the image
+        return new Mat(image, roi);
     }
 
 }
