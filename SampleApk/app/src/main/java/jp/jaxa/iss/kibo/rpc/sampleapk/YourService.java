@@ -2,12 +2,19 @@ package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.util.Log;
+import android.util.Log; // Log
 
-import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Rect;
+import org.opencv.core.RotatedRect;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 
-import gov.nasa.arc.astrobee.types.Point;
-import gov.nasa.arc.astrobee.types.Quaternion;
+import jp.jaxa.iss.kibo.rpc.api.KiboRpcService; // providing the API to interact with the Astrobee robot.
+
+import gov.nasa.arc.astrobee.types.Point; // coordinates
+import gov.nasa.arc.astrobee.types.Quaternion; // orientations
 
 import org.opencv.android.Utils;
 import org.opencv.aruco.Aruco;
@@ -15,34 +22,17 @@ import org.opencv.aruco.Dictionary;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
-import org.opencv.core.DMatch;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfDMatch;
-import org.opencv.core.MatOfKeyPoint;
-import org.opencv.core.MatOfPoint;
-import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.features2d.BFMatcher;
-import org.opencv.features2d.ORB;
+import org.opencv.core.Mat; //  Matrix data type from OpenCV for handling images
 import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-
-/**
- * Class meant to handle commands from the Ground Data System and execute them in Astrobee.
- */
 
 public class YourService extends KiboRpcService {
 
     private final String TAG = this.getClass().getSimpleName();
-
-<<<<<<< HEAD
     private final String[] TEMPLATE_FILE_NAME = {
             "beaker.png",
             "goggle.png",
@@ -58,413 +48,390 @@ public class YourService extends KiboRpcService {
 
     private final String[] TEMPLATE_NAME = {
             "beaker",
-            "top",
             "goggle",
             "hammer",
-            "wrench",
             "kapton_tape",
-            "thermometer",
-            "watch",
             "pipette",
-            "screwdriver"
+            "screwdriver",
+            "thermometer",
+            "top",
+            "watch",
+            "wrench"
     };
 
-=======
->>>>>>> 17b34238124e604804f877e3f6d6df90b6014bec
+    private int areaId = 1;
+
     @Override
-    protected void runPlan1() {
-        Log.i(TAG, "start mission");
+    protected void runPlan1(){
+        try {
+            api.startMission(); // start the mission
+            Log.i(TAG, "Start mission");
+            Mat[] t = TemplateLoading();
 
-        // The mission starts.
-        api.startMission();
+            // Move to a point.
+            Point point = new Point(10.9d, -9.92284d, 5.195d);
+            Quaternion quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
+            api.moveTo(point, quaternion, true);
+            Log.i(TAG, "Moved0.1");
 
-        // Move to a point.
-        Point point = new Point(10.9d, -9.92284d, 5.195d);
-        Quaternion quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
-        api.moveTo(point, quaternion, false);
+            /// step in x axis 20cm and reset rotation
+            point = new Point(11.1d, -9.92284d, 5.195d);
+            api.moveTo(point, quaternion, true);
+            Log.i(TAG, "Moved0.2");
 
-        // step in x axis 20cm and reset rotation
-        point = new Point(11.1d, -9.92284d, 5.195d);
-        api.moveTo(point, quaternion, true);
-        // Get a camera image.
-        Mat image1 = api.getMatNavCam();
-        api.saveMatImage(image1, "file_name1.png");
-
-        detectObject(image1, 1);
-
-        // step to 2nd area and rotate to the ceiling
-        point = new Point(11.1d, -9.155d, 5.195d);
-        Quaternion quaternion_lookUpInXAxis = new Quaternion(-0.062f, 0.704f, -0.062f, 0.704f);
-        api.moveTo(point, quaternion_lookUpInXAxis, true);
-
-        // move up to 2nd image
-        point = new Point(11.1d, -9.155d, 4.5d);
-        api.moveTo(point, quaternion_lookUpInXAxis, true);
-
-        // Get a camera image.
-        Mat image2 = api.getMatNavCam();
-        api.saveMatImage(image2, "file_name2.png");
-
-        detectObject(image2, 2);
-//        final int LOOP_MAX = 5;
-//
-//        int loopCounter = 0;
-//        while(!result.hasSucceeded() && loopCounter < LOOP_MAX) {
-//            result = api.moveTo(point, quaternion_lookUpInXAxis,true);
-//            ++loopCounter;
-//        }
-
-        // move to 3rd image
-        point = new Point(11.1d, -8.055d, 4.5d);
-        quaternion_lookUpInXAxis = new Quaternion(0.271f, 0.653f, 0.271f, 0.653f);
-        api.moveTo(point, quaternion_lookUpInXAxis, true);
-
-        // Get a camera image.
-        Mat image3 = api.getMatNavCam();
-        // Save the image
-        api.saveMatImage(image3, "file_name3.png");
-
-        detectObject(image3, 3);
+            // Get a camera image.
+            Mat image0 = api.getMatNavCam();
+            api.saveMatImage(image0, "file_name0.png");
+            Log.i(TAG, "Captured and saved image0");
 
 
-        // move to 4th area by move x
-        point = new Point(10.7d, -8.055d, 4.5d);
-        quaternion = new Quaternion(0f, 0f, 0f, 0f);
-        api.moveTo(point, quaternion, true);
+            crop(image0, t, 300, 50, 0, 0);
+            areaId++;
+            Log.i(TAG, "next is area2");
 
-        // move to 4th image by move Y
-        point = new Point(10.7d, -7.055d, 4.7d);
-        quaternion = new Quaternion(0f, 0f, 1f, 0f);
-        api.moveTo(point, quaternion, true);
+            // step to 2nd area and rotate to the ceiling
+            point = new Point(11.1d, -9.155d, 5.195d);
+            Quaternion quaternion_lookUpInXAxis = new Quaternion(0f,  0.707f, 0f,  0.707f);
+            api.moveTo(point, quaternion_lookUpInXAxis, true);
+            Log.i(TAG, "Moved1.1");
 
-        // Get a camera image.
-        Mat image4 = api.getMatNavCam();
-        // Save the image
-        api.saveMatImage(image4, "file_name4.png");
+            // move up to 2nd image
+            point = new Point(11.1d, -8.955d, 4.5d);
+            api.moveTo(point, quaternion_lookUpInXAxis,true);
+            Log.i(TAG, "Moved1.2");
 
-        detectObject(image4, 4);
+            // Get a camera image.
+            Mat image1 = api.getMatNavCam();
+            api.saveMatImage(image1, "file_name1.png");
+            Log.i(TAG, "Captured and saved image1");
 
-        // move to astronaut
-        point = new Point(11.143, -6.7607, 4.9654);
-        quaternion = new Quaternion(0f, 0f, 0.707f, 0.707f);
-        api.moveTo(point, quaternion, true);
+            crop(image1, t, 300, 250, 0, 0);
+            areaId++;
+            Log.i(TAG, "next is area3");
+
+            // move to 3rd image
+            point = new Point(11.1d, -8.055d, 4.5d);
+//            quaternion_lookUpInXAxis = new Quaternion(0.271f,  0.653f, 0.271f,  0.653f);
+            api.moveTo(point, quaternion_lookUpInXAxis, true);
+            Log.i(TAG, "Moved2.1");
+
+            // Get a camera image.
+            Mat image2 = api.getMatNavCam();
+            // Save the image
+            api.saveMatImage(image2, "file_name2.png");
+            Log.i(TAG, "Captured and saved image2");
+
+            crop(image2, t,  300, 0, 0, 0);
+            areaId++;
+            Log.i(TAG, "next is area3");
+
+            // move to 4th area by move x
+            point = new Point(10.7d, -8.055d, 4.5d);
+            quaternion = new Quaternion(0f,  0f, 0f,  0f);
+            api.moveTo(point, quaternion, true);
+            Log.i(TAG, "Moved3.1");
+
+            // move to 4th image by move Y
+            point = new Point(10.7d, -7.055d, 4.8d);
+            quaternion = new Quaternion(0f,  0f, 1f,  0f);
+            api.moveTo(point, quaternion, true);
+            Log.i(TAG, "Moved3.2");
 
 
-        /* *********************************************************************** */
-        /* Write your code to recognize type and number of items in the each area! */
-        /* *********************************************************************** */
+            // Get a camera image.
+            Mat image3 = api.getMatNavCam();
+            // Save the image
+            api.saveMatImage(image3, "file_name3.png");
+            Log.i(TAG, "Captured and saved image3");
 
-<<<<<<< HEAD
-=======
-        //Detect AR
-        Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
-        List<Mat> corners = new ArrayList<>();
-        Mat makerIds = new Mat();
-        Aruco.detectMarkers(image, dictionary, corners, makerIds);
+            crop(image3, t, 0,0,0,0);
 
-        //Get camera metrix
-        Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
-        cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
-        //Get lens distortion parameters
-        Mat cameraCoefficients = new Mat(1, 5, CvType.CV_64F);
-        cameraCoefficients.put(0, 0, api.getNavCamIntrinsics()[1]);
-        cameraCoefficients.convertTo(cameraCoefficients, CvType.CV_64F);
+            // move to astronaut
+            //        point = new Point(11.143, -6.7607, 4.9654);
+            //        quaternion = new Quaternion(0f, 0f, 0.707f, 0.707f);
+            //        api.moveTo(point, quaternion, true);
 
-        //Undistart image
-        Mat undistortImg = new Mat();
-        Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
+            //When you move to the front of the astronaut, report the rounding completion.
+            api.reportRoundingCompletion();
 
-        //Pattern matching
-        //Load template images
-        String[] TEMPLATE_FILE_NAME = {
-                "beaker.png",
-                "goggle.png",
-                "hammer.png",
-                "kapton_tape.png",
-                "pipette.png",
-                "screwdriver.png",
-                "thermometer.png",
-                "top.png",
-                "watch.png",
-                "wrench.png"
-        };
+            //        /* ********************************************************** */
+            //        /* Write your code to recognize which item the astronaut has. */
+            //        /* ********************************************************** */
 
+            //Let's notify the astronaut when you recognize it.
+            api.notifyRecognitionItem();
+
+            //Take a snapshot of the target item.
+            api.takeTargetItemSnapshot();
+        } catch (Exception e) {
+            Log.e(TAG, "Error in runPlan1", e);
+        }
+    }
+    private Mat[] TemplateLoading(){
+        // Template loading
         Mat[] templates = new Mat[TEMPLATE_FILE_NAME.length];
-        for (int i = 0; i < TEMPLATE_FILE_NAME.length; i++){
-            try {
-                //open the template image file in bitmap from the file name and convert to Mat
+        for(int i = 0; i < TEMPLATE_FILE_NAME.length; i++){
+            try{
                 InputStream inputStream = getAssets().open(TEMPLATE_FILE_NAME[i]);
                 Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
                 Mat mat = new Mat();
                 Utils.bitmapToMat(bitmap, mat);
 
-                //convert to grayscale
                 Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGR2GRAY);
 
-                //assign to an array of templates
                 templates[i] = mat;
+
                 inputStream.close();
+                Log.i(TAG, "Successfully loaded template: " + TEMPLATE_FILE_NAME[i]);
             } catch (IOException e){
                 e.printStackTrace();
+                Log.e(TAG, "Failed to load template: " + TEMPLATE_FILE_NAME[i], e);
             }
         }
+        return templates;
+    }
 
-        // Number of matches for each template
-        int templateMatchCnt[] = new int[10];
+    private Mat CameraCalibration(Mat image){
+        Mat undistortImg = new Mat();
+        try {
+            //Camera Calibration
+            Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
+            double[] intrinsics = api.getNavCamIntrinsics()[0];
+            if (intrinsics != null && intrinsics.length == 9) {
+                cameraMatrix.put(0, 0, intrinsics);
+            } else {
+                Log.e(TAG, "Invalid camera matrix intrinsics");
+                return image;
+            }
 
-        // Get the number of template matches
-        for(int tempNum = 0; tempNum < templates.length; tempNum++){
-            // Number of matches
+            Mat cameraCoefficients = new Mat(1, 5, CvType.CV_64F);
+            double[] coefficients = api.getNavCamIntrinsics()[1];
+            if (coefficients != null && coefficients.length == 5) {
+                cameraCoefficients.put(0, 0, coefficients);
+            } else {
+                Log.e(TAG, "Invalid camera coefficients");
+                return image;
+            }
+
+            Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
+            Log.i(TAG, "Camera Calibrated");
+
+        }catch (Exception e) {
+            Log.e(TAG, "Error during camera calibration", e);
+            return image;
+        }
+        return undistortImg;
+    }
+
+    private void crop(Mat image, Mat[] templates,int leftShift, int rightShift, int topShift, int bottomShift) {
+        try {
+            // Undistort the image
+            Mat undistortImg = CameraCalibration(image);
+            List<Mat> croppedImages = new ArrayList<>();
+
+            Mat imagecrop = cropImage(undistortImg, leftShift, rightShift, topShift, bottomShift);
+
+            // Convert the image to grayscale if necessary
+            Mat grayImage = new Mat();
+            if (undistortImg.channels() == 3) {
+                Imgproc.cvtColor(imagecrop, grayImage, Imgproc.COLOR_BGR2GRAY);
+            } else if (undistortImg.channels() == 4) {
+                Imgproc.cvtColor(imagecrop, grayImage, Imgproc.COLOR_BGRA2GRAY);
+            } else {
+                grayImage = imagecrop.clone();
+            }
+
+            // Apply Gaussian blur to the image
+            Mat blurredImage = new Mat();
+            Imgproc.GaussianBlur(grayImage, blurredImage, new Size(5, 5), 0);
+
+            // Apply Canny edge detection
+            Mat edges = new Mat();
+            Imgproc.Canny(blurredImage, edges, 50, 150);
+//
+//            // Save the edges image for debugging
+//            String edgesFilename = "edges_image_" + System.currentTimeMillis() + ".png";
+//            api.saveMatImage(edges, edgesFilename);
+//            Log.i(TAG, "Edges image saved as: " + edgesFilename);
+
+            // Find contours from the edges
+            List<MatOfPoint> contours = new ArrayList<>();
+            Mat hierarchy = new Mat();
+            Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+            // Draw contours on the original image for debugging
+            Mat contourImage = imagecrop.clone();
+            Imgproc.drawContours(contourImage, contours, -1, new Scalar(0, 255, 0), 2);
+
+            String contoursFilename = "contours_image_" + System.currentTimeMillis() + ".png";
+            api.saveMatImage(contourImage, contoursFilename);
+            Log.i(TAG, "Contours image saved as: " + contoursFilename);
+
+
+            double targetAspectRatio = 27.0 / 15.0;
+
+            MatOfPoint2f bestContour = new MatOfPoint2f();
+            double bestAspectRatioDiff = Double.MAX_VALUE;
+            double largestArea = 0;  // ตัวแปรสำหรับเก็บพื้นที่ใหญ่ที่สุด
+
+// Iterate through each contour
+            for (MatOfPoint contour : contours) {
+                MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
+                MatOfPoint2f approxCurve = new MatOfPoint2f();
+                double approxDistance = Imgproc.arcLength(contour2f, true) * 0.02;
+                Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
+
+                // Check if the approximated contour has 4 points and is convex
+                if (approxCurve.total() == 4 && Imgproc.isContourConvex(new MatOfPoint(approxCurve.toArray()))) {
+                    Rect boundingRect = Imgproc.boundingRect(new MatOfPoint(approxCurve.toArray()));
+                    double aspectRatio = (double) boundingRect.width / boundingRect.height;
+
+                    // Ensure aspectRatio is always greater than 1
+                    if (aspectRatio < 1) {
+                        aspectRatio = 1.0 / aspectRatio;
+                    }
+
+                    double aspectRatioDiff = Math.abs(aspectRatio - targetAspectRatio);
+                    double area = Imgproc.contourArea(new MatOfPoint(approxCurve.toArray()));  // คำนวณพื้นที่ของคอนทัวร์
+
+                    // เปรียบเทียบอัตราส่วนและพื้นที่เพื่อหาอันที่ดีที่สุด
+                    if (aspectRatioDiff < bestAspectRatioDiff || (aspectRatioDiff == bestAspectRatioDiff && area > largestArea)) {
+                        bestAspectRatioDiff = aspectRatioDiff;
+                        largestArea = area;  // อัปเดตพื้นที่ใหญ่ที่สุด
+                        bestContour = approxCurve;
+                    }
+                }
+            }
+
+            if (bestContour.empty()) {
+                Log.i(TAG, "No paper found!");
+                return;
+            }
+
+            // Prepare source points and destination points for the perspective transform
+            Mat srcPoints = new Mat(4, 2, CvType.CV_32F);
+            srcPoints.put(0, 0, bestContour.get(0, 0));
+            srcPoints.put(1, 0, bestContour.get(1, 0));
+            srcPoints.put(2, 0, bestContour.get(2, 0));
+            srcPoints.put(3, 0, bestContour.get(3, 0));
+
+            Rect boundingRect = Imgproc.boundingRect(new MatOfPoint(bestContour.toArray()));
+            Mat dstPoints = new Mat(4, 2, CvType.CV_32F);
+            dstPoints.put(0, 0, new float[]{0, 0});
+            dstPoints.put(1, 0, new float[]{boundingRect.width - 1, 0});
+            dstPoints.put(2, 0, new float[]{boundingRect.width - 1, boundingRect.height - 1});
+            dstPoints.put(3, 0, new float[]{0, boundingRect.height - 1});
+
+            // Compute the perspective transform matrix
+            Mat transform = Imgproc.getPerspectiveTransform(srcPoints, dstPoints);
+
+            // Warp the perspective to get the top-down view of the rectangle
+            Mat croppedImage = new Mat();
+            Imgproc.warpPerspective(imagecrop, croppedImage, transform, new Size(boundingRect.width, boundingRect.height));
+
+            // Save the cropped image
+            String croppedFilename = "cropped_image_" + System.currentTimeMillis() + ".png";
+            api.saveMatImage(croppedImage, croppedFilename);
+            Log.i(TAG, "Cropped image saved as: " + croppedFilename);
+
+            croppedImages.add(croppedImage);
+
+            Log.i(TAG, "Image Cropped");
+            detectObject(croppedImages, templates);
+        } catch (Exception e) {
+            Log.e(TAG, "Error during cropping", e);
+        }
+    }
+
+    private void detectObject(List<Mat> croppedImages, Mat[] templates) {
+        // Template Matching
+        int[] templateMatchCnt = new int[TEMPLATE_FILE_NAME.length]; // Initialize template match count
+
+        for (int tempNum = 0; tempNum < templates.length; tempNum++) { // Loop through templates
             int matchCnt = 0;
-            // Coordinates of the matched Location
+
             List<org.opencv.core.Point> matches = new ArrayList<>();
 
-            //Loading template image and target image
             Mat template = templates[tempNum].clone();
-            Mat targetImg = undistortImg.clone();
 
-            // Pattern matching
-            int widthMin = 20; //[px]
-            int widthMax = 10; //[px]
-            int changeWidth = 5; //[px]
-            int changeAngle = 45; //[degree]
+            for (Mat targetImg : croppedImages) { // Loop through cropped images
+                int widthMin = 20; // Minimum width in pixels
+                int widthMax = 100; // Maximum width in pixels
+                int changeWidth = 5; // Width increment in pixels
+                int changeAngle = 45; // Angle increment in degrees
 
-            for(int i = widthMin; i <= widthMax; i+= changeWidth){
-                for(int j = 0; j <= 360; j+= changeAngle){
-                    Mat resizedTemp = resizeImg(template, i);
-                    Mat rotResizedTemp = rotImg(resizedTemp, j);
+                for (int i = widthMin; i <= widthMax; i += changeWidth) {
+                    for (int j = 0; j <= 360; j += changeAngle) {
+                        Mat resizedTemp = resizeImg(template, i);
+                        Mat rotResizedTemp = rotImg(resizedTemp, j);
 
-                    Mat result = new Mat();
-                    Imgproc.matchTemplate(targetImg, rotResizedTemp, result, Imgproc.TM_CCOEFF_NORMED);
+                        Mat result = new Mat();
+                        Imgproc.matchTemplate(targetImg, rotResizedTemp, result, Imgproc.TM_CCOEFF_NORMED);
 
-                    // Get coordinates with similarity grater than or equal to the threshold
-                    double threshold = 0.8;
-                    Core.MinMaxLocResult mmlr = Core.minMaxLoc(result);
-                    double maxVal = mmlr.maxVal;
-                    if(maxVal >= threshold){
-                        //Extract only results grater than or equal to to the threshold
-                        Mat thresholdedResult = new Mat();
-                        Imgproc.threshold(result, thresholdedResult, threshold, 1.0, Imgproc.THRESH_TOZERO);
+                        double threshold = 0.8;
+                        Core.MinMaxLocResult mmlr = Core.minMaxLoc(result);
+                        double maxVal = mmlr.maxVal;
+                        if (maxVal >= threshold) {
+                            Mat thresholdedResult = new Mat();
+                            Imgproc.threshold(result, thresholdedResult, threshold, 1.0, Imgproc.THRESH_TOZERO);
 
-                        // Get match counts
-                        for(int y = 0; y < thresholdedResult.rows(); y++){
-                            for(int x = 0; x < thresholdedResult.cols(); x++){
-                                if(thresholdedResult.get(y,x)[0] > 0){
-                                    matches.add(new org.opencv.core.Point(x, y));
+                            for (int y = 0; y < thresholdedResult.rows(); y++) {
+                                for (int x = 0; x < thresholdedResult.cols(); x++) {
+                                    if (thresholdedResult.get(y, x)[0] > 0) {
+                                        matches.add(new org.opencv.core.Point(x, y));
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            // Avoid detacting the same Location multiple times
+
             List<org.opencv.core.Point> filteredMatches = removeDuplicates(matches);
             matchCnt += filteredMatches.size();
 
-            // Number of matches for each template
             templateMatchCnt[tempNum] = matchCnt;
 
+            Log.i(TAG, "Template: " + TEMPLATE_NAME[tempNum] + ", Matches: " + matchCnt);
         }
 
->>>>>>> 17b34238124e604804f877e3f6d6df90b6014bec
-        // When you recognize items, let’s set the type and number.
-//        api.setAreaInfo(1, "item_name", 1);
-
-        /* **************************************************** */
-        /* Let's move to the each area and recognize the items. */
-        /* **************************************************** */
-
-        // When you move to the front of the astronaut, report the rounding completion.
-        api.reportRoundingCompletion();
-
-        /* ********************************************************** */
-        /* Write your code to recognize which item the astronaut has. */
-        /* ********************************************************** */
-
-        // Let's notify the astronaut when you recognize it.
-        api.notifyRecognitionItem();
-
-        /* ******************************************************************************************************* */
-        /* Write your code to move Astrobee to the location of the target item (what the astronaut is looking for) */
-        /* ******************************************************************************************************* */
-
-        // Take a snapshot of the target item.
-        api.takeTargetItemSnapshot();
-    }
-
-    @Override
-    protected void runPlan2() {
-        // write your plan 2 here.
-    }
-
-    @Override
-    protected void runPlan3() {
-        // write your plan 3 here.
-    }
-
-//    // You can add your method.
-//    private String yourMethod(){
-//        return "your method";
-//    }
-
-    private void detectObject(Mat image, int n) {
-        // Detect AR
-        Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
-        List<Mat> corners = new ArrayList<>();
-        Mat markerIds = new Mat();
-        Aruco.detectMarkers(image, dictionary, corners, markerIds);
-
-        // Get camera matrix
-        Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
-        cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
-        //Get lens distortion parameters
-        Mat cameraCoefficients = new Mat(1, 5, CvType.CV_64F);
-        cameraCoefficients.put(0, 0, api.getNavCamIntrinsics()[1]);
-        cameraCoefficients.convertTo(cameraCoefficients, CvType.CV_64F);
-
-        // Undistort image
-        Mat undistortImg = new Mat();
-        Calib3d.undistort(image, undistortImg, cameraMatrix, cameraCoefficients);
-
-        Bitmap bit = Bitmap.createBitmap(undistortImg.cols(), undistortImg.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(undistortImg, bit);
-        Mat matrix = new Mat();
-        Utils.bitmapToMat(bit, matrix);
-
-        // แปลงภาพเป็นระดับสีเทา
-        Mat gray = new Mat();
-        Imgproc.cvtColor(matrix, gray, Imgproc.COLOR_BGR2GRAY);
-
-        // ใช้ Canny Edge Detection เพื่อหาขอบ
-        Mat edged = new Mat();
-        Imgproc.Canny(gray, edged, 75, 200);
-
-        // **Detect Contours**
-        List<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(edged, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        // (Optional) Draw contours on the image
-        Mat contourOutput = matrix.clone();
-        Imgproc.drawContours(contourOutput, contours, -1, new Scalar(0, 255, 0), 2);
-
-
-        //Pattern matching using ORB
-        //Load template images
-        Mat[] templates = loadTemplates();
-        if (templates == null) return;
-
-        int[] templateMatchCnt = new int[templates.length];
-        ORB orb = ORB.create();
-
-        for (int i = 0; i < templates.length; i++) {
-            Mat template = templates[i];
-            MatOfKeyPoint templateKeyPoints = new MatOfKeyPoint();
-            Mat templateDescriptors = new Mat();
-            orb.detectAndCompute(template, templateDescriptors, templateKeyPoints, templateDescriptors);
-
-            MatOfKeyPoint imageKeyPoints = new MatOfKeyPoint();
-            Mat imageDesriptors = new Mat();
-            orb.detectAndCompute(contourOutput, imageDesriptors, imageKeyPoints, imageDesriptors);
-
-            BFMatcher matcher = BFMatcher.create(Core.NORM_HAMMING, true);
-            MatOfDMatch matches = new MatOfDMatch();
-            matcher.match(templateDescriptors, imageDesriptors, matches);
-
-            DMatch[] matchArray = matches.toArray();
-            int matchCount = 0;
-            for (DMatch match : matchArray) {
-                if (match.distance < 50) {
-                    matchCount++;
-                }
-            }
-
-            templateMatchCnt[i] = matchCount;
-            Log.i(TAG, "Template: " + TEMPLATE_NAME[i] + ", Matches: " + matchCount);
-        }
-
+        //Result Reporting
+        //When you recognize items, let’s set the type and number.
         int mostMatchTemplateNum = getMaxIndex(templateMatchCnt);
         Log.i(TAG, "Most matched template: " + TEMPLATE_NAME[mostMatchTemplateNum]);
-        api.setAreaInfo(n, TEMPLATE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
-
-
+        api.setAreaInfo(areaId, TEMPLATE_FILE_NAME[mostMatchTemplateNum], templateMatchCnt[mostMatchTemplateNum]);
     }
-
-    //Get the maximum value of an array
-    private int getMaxIndex(int[] array){
-        int max = 0;
-        int maxIndex = 0;
-
-        //Find the index of the element with the largest value
-        for(int i = 0; i < array.length; i++){
-            if(array[i] > max){
-                max = array[i];
-                maxIndex = i;
-            }
-        }
-        return maxIndex;
-    }
-
-    private Mat[] loadTemplates() {
-        Mat[] templates = new Mat[TEMPLATE_FILE_NAME.length];
-        for (int i = 0; i < TEMPLATE_FILE_NAME.length; i++) {
-            try {
-                InputStream inputStream = getAssets().open(TEMPLATE_FILE_NAME[i]);
-                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-                if (bitmap == null) {
-                    Log.e(TAG, "Failed to decode bitmap for template: " + TEMPLATE_FILE_NAME[i]);
-                    continue;
-                }
-                Mat mat = new Mat();
-                Utils.bitmapToMat(bitmap, mat);
-                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGR2GRAY);
-                templates[i] = mat;
-                inputStream.close();
-                Log.i(TAG, "Loaded template: " + TEMPLATE_FILE_NAME[i]);
-            } catch (IOException e) {
-                e.printStackTrace();
-                Log.e(TAG, "IOException while loading template: " + TEMPLATE_FILE_NAME[i]);
-            }
-        }
-        return templates;
-    }
-
 
     // Resize image
     private Mat resizeImg(Mat img, int width){
-        int height = (int)(img.rows() * ((double) width/ img.cols()));
+        int height = (int)(img.rows() * ((double) width / img.cols()));
         Mat resizedImg = new Mat();
         Imgproc.resize(img, resizedImg, new Size(width, height));
-
         return resizedImg;
     }
 
-    //Rotate image
-    private Mat rotImg(Mat img, int angle){
+    // Rotate image
+    private Mat rotImg (Mat img, int angle){
         org.opencv.core.Point center = new org.opencv.core.Point(img.cols() / 2.0, img.rows() / 2.0);
         Mat rotatedMat = Imgproc.getRotationMatrix2D(center, angle, 1.0);
         Mat rotatedImg = new Mat();
         Imgproc.warpAffine(img, rotatedImg, rotatedMat, img.size());
-
         return rotatedImg;
     }
 
-    //Remove multiple detections
-    private static List<org.opencv.core.Point> removeDuplicates(List<org.opencv.core.Point> points){
-        double length = 10; //width 10 px
+    //    remove multiple detections
+    private static List<org.opencv.core.Point> removeDuplicates (List<org.opencv.core.Point> points){
+        double length = 10; // [px]
         List<org.opencv.core.Point> filteredList = new ArrayList<>();
-
         for(org.opencv.core.Point point : points){
             boolean isInclude = false;
-            for(org.opencv.core.Point checkpoint : filteredList){
-                double distance = calculateDistance(point, checkpoint);
-
+            for(org.opencv.core.Point checkPoint : filteredList){
+                double distance = calculateDistance(point, checkPoint);
                 if(distance <= length){
                     isInclude = true;
                     break;
                 }
             }
-
             if(!isInclude){
                 filteredList.add(point);
             }
@@ -476,7 +443,39 @@ public class YourService extends KiboRpcService {
     private static double calculateDistance(org.opencv.core.Point p1, org.opencv.core.Point p2){
         double dx = p1.x - p2.x;
         double dy = p1.y - p2.y;
-
-        return Math.sqrt(Math.pow(dx, 2) +  Math.pow(dy, 2));
+        return Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
     }
+
+    //Get the maximum value of an array
+    private int getMaxIndex (int[] array){
+        int max = 0;
+        int maxIndex = 0;
+        for (int i = 0; i < array.length; i++){
+            if(array[i] > max){
+                max = array[i];
+                maxIndex = i;
+            }
+        }
+        return maxIndex;
+    }
+
+    public static Mat cropImage(Mat image, int leftShift, int rightShift, int topShift, int bottomShift) {
+        int x = leftShift;
+        int y = topShift;
+        int width = image.cols() - leftShift - rightShift;
+        int height = image.rows() - topShift - bottomShift;
+
+        // Ensure the dimensions are valid
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Invalid crop dimensions!");
+        }
+
+        // Define the region of interest (ROI)
+        Rect roi = new Rect(x, y, width, height);
+
+        // Crop the image
+        return new Mat(image, roi);
+    }
+
+
 }
