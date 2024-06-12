@@ -60,13 +60,14 @@ public class YourService extends KiboRpcService {
     };
 
     private int areaId = 1;
+    Mat[] t;
 
     @Override
     protected void runPlan1(){
         try {
             api.startMission(); // start the mission
             Log.i(TAG, "Start mission");
-            Mat[] t = TemplateLoading();
+            t = TemplateLoading();
 
             // Move to a point.
             Point point = new Point(10.9d, -9.92284d, 5.195d);
@@ -80,12 +81,13 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "Moved0.2");
 
             // Get a camera image.
+            api.flashlightControlFront(0.6f);
             Mat image0 = api.getMatNavCam();
             api.saveMatImage(image0, "file_name0.png");
             Log.i(TAG, "Captured and saved image0");
 
 
-            crop(image0, t, 300, 50, 0, 0);
+            crop(image0, areaId, 300, 50, 0, 0);
             areaId++;
             Log.i(TAG, "next is area2");
 
@@ -101,11 +103,12 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "Moved1.2");
 
             // Get a camera image.
+            api.flashlightControlFront(0.6f);
             Mat image1 = api.getMatNavCam();
             api.saveMatImage(image1, "file_name1.png");
             Log.i(TAG, "Captured and saved image1");
 
-            crop(image1, t, 300, 250, 0, 0);
+            crop(image1, areaId, 300, 250, 0, 0);
             areaId++;
             Log.i(TAG, "next is area3");
 
@@ -116,12 +119,13 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "Moved2.1");
 
             // Get a camera image.
+            api.flashlightControlFront(0.6f);
             Mat image2 = api.getMatNavCam();
             // Save the image
             api.saveMatImage(image2, "file_name2.png");
             Log.i(TAG, "Captured and saved image2");
 
-            crop(image2, t,  300, 0, 0, 0);
+            crop(image2, areaId,  300, 0, 0, 0);
             areaId++;
             Log.i(TAG, "next is area3");
 
@@ -139,12 +143,13 @@ public class YourService extends KiboRpcService {
 
 
             // Get a camera image.
+            api.flashlightControlFront(0.6f);
             Mat image3 = api.getMatNavCam();
             // Save the image
             api.saveMatImage(image3, "file_name3.png");
             Log.i(TAG, "Captured and saved image3");
 
-            crop(image3, t, 0,0,0,0);
+            crop(image3, areaId, 0,0,0,0);
 
             // move to astronaut
             //        point = new Point(11.143, -6.7607, 4.9654);
@@ -223,7 +228,7 @@ public class YourService extends KiboRpcService {
         return undistortImg;
     }
 
-    private void crop(Mat image, Mat[] templates,int leftShift, int rightShift, int topShift, int bottomShift) {
+    private void crop(Mat image, int n ,int leftShift, int rightShift, int topShift, int bottomShift) {
         try {
             // Undistort the image
             Mat undistortImg = CameraCalibration(image);
@@ -243,11 +248,14 @@ public class YourService extends KiboRpcService {
 
             // Apply Gaussian blur to the image
             Mat blurredImage = new Mat();
-            Imgproc.GaussianBlur(grayImage, blurredImage, new Size(5, 5), 0);
+            Imgproc.GaussianBlur(grayImage, blurredImage, new Size(3, 3), 0);
+
+            Mat binary = new Mat(blurredImage.rows(), blurredImage.cols(), blurredImage.type(), new Scalar(0));
+            Imgproc.threshold(blurredImage, binary, 20, 200, Imgproc.THRESH_BINARY_INV);
 
             // Apply Canny edge detection
             Mat edges = new Mat();
-            Imgproc.Canny(blurredImage, edges, 50, 150);
+            Imgproc.Canny(binary, edges, 50, 150);
 //
 //            // Save the edges image for debugging
 //            String edgesFilename = "edges_image_" + System.currentTimeMillis() + ".png";
@@ -257,13 +265,13 @@ public class YourService extends KiboRpcService {
             // Find contours from the edges
             List<MatOfPoint> contours = new ArrayList<>();
             Mat hierarchy = new Mat();
-            Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+            Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
 
             // Draw contours on the original image for debugging
             Mat contourImage = imagecrop.clone();
-            Imgproc.drawContours(contourImage, contours, -1, new Scalar(0, 255, 0), 2);
+            Imgproc.drawContours(contourImage, contours, -1, new Scalar(0, 255, 0), 2,Imgproc.LINE_8, hierarchy, 2);
 
-            String contoursFilename = "contours_image_" + System.currentTimeMillis() + ".png";
+            String contoursFilename = "contours_image_" + n + ".png";
             api.saveMatImage(contourImage, contoursFilename);
             Log.i(TAG, "Contours image saved as: " + contoursFilename);
 
@@ -274,7 +282,7 @@ public class YourService extends KiboRpcService {
             double bestAspectRatioDiff = Double.MAX_VALUE;
             double largestArea = 0;  // ตัวแปรสำหรับเก็บพื้นที่ใหญ่ที่สุด
 
-// Iterate through each contour
+            // Iterate through each contour
             for (MatOfPoint contour : contours) {
                 MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
                 MatOfPoint2f approxCurve = new MatOfPoint2f();
@@ -330,14 +338,14 @@ public class YourService extends KiboRpcService {
             Imgproc.warpPerspective(imagecrop, croppedImage, transform, new Size(boundingRect.width, boundingRect.height));
 
             // Save the cropped image
-            String croppedFilename = "cropped_image_" + System.currentTimeMillis() + ".png";
+            String croppedFilename = "cropped_image_" + n + ".png";
             api.saveMatImage(croppedImage, croppedFilename);
             Log.i(TAG, "Cropped image saved as: " + croppedFilename);
 
             croppedImages.add(croppedImage);
 
             Log.i(TAG, "Image Cropped");
-            detectObject(croppedImages, templates);
+            detectObject(croppedImages, t);
         } catch (Exception e) {
             Log.e(TAG, "Error during cropping", e);
         }
@@ -368,7 +376,7 @@ public class YourService extends KiboRpcService {
                         Mat result = new Mat();
                         Imgproc.matchTemplate(targetImg, rotResizedTemp, result, Imgproc.TM_CCOEFF_NORMED);
 
-                        double threshold = 0.8;
+                        double threshold = 0.85;
                         Core.MinMaxLocResult mmlr = Core.minMaxLoc(result);
                         double maxVal = mmlr.maxVal;
                         if (maxVal >= threshold) {
