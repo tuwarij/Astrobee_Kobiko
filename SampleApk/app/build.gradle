@@ -1,18 +1,16 @@
 apply plugin: 'com.android.application'
 
-
 android {
     compileSdkVersion 26
     buildToolsVersion "28.0.3"
     defaultConfig {
-        applicationId "jp.jaxa.iss.kibo.rpc.sampleapk" +
-                ""
+        applicationId "jp.jaxa.iss.kibo.rpc.sampleapk"
         minSdkVersion 24
         targetSdkVersion 26
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        multiDexEnabled  true
+        multiDexEnabled true
     }
     buildTypes {
         release {
@@ -32,6 +30,14 @@ android {
         exclude 'META-INF/dependencies.txt'
         exclude 'META-INF/LGPL2.1'
     }
+    aaptOptions {
+        noCompress "tflite"
+    }
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
 }
 
 dependencies {
@@ -50,4 +56,6 @@ dependencies {
     }
     testCompile 'junit:junit:4.12'
     compile 'com.quickbirdstudios:opencv-contrib:4.5.3.0'
+    implementation 'org.tensorflow:tensorflow-lite:0.4.0'
+    implementation 'org.tensorflow:tensorflow-lite-support:0.3.0'
 }
